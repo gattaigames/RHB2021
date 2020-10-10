@@ -1501,7 +1501,7 @@ function _emscripten_asm_const_ii(code, a0) {
  return ASM_CONSTS[code](a0);
 }
 STATIC_BASE = GLOBAL_BASE;
-STATICTOP = STATIC_BASE + 2404272;
+STATICTOP = STATIC_BASE + 2477792;
 __ATINIT__.push({
  func: (function() {
   __GLOBAL__sub_I_AccessibilityScriptingClasses_cpp();
@@ -3352,10 +3352,6 @@ __ATINIT__.push({
  })
 }, {
  func: (function() {
-  __GLOBAL__sub_I_Il2CppCodeRegistration_cpp();
- })
-}, {
- func: (function() {
   __GLOBAL__sub_I_Lump_libil2cpp_vm_cpp();
  })
 }, {
@@ -3372,10 +3368,14 @@ __ATINIT__.push({
  })
 }, {
  func: (function() {
+  __GLOBAL__sub_I_Il2CppCodeRegistration_cpp();
+ })
+}, {
+ func: (function() {
   ___emscripten_environ_constructor();
  })
 });
-var STATIC_BUMP = 2404272;
+var STATIC_BUMP = 2477792;
 Module["STATIC_BASE"] = STATIC_BASE;
 Module["STATIC_BUMP"] = STATIC_BUMP;
 var tempDoublePtr = STATICTOP;
@@ -3391,6 +3391,10 @@ function _JS_Cursor_SetShow(show) {
 }
 function _JS_Eval_ClearInterval(id) {
  window.clearInterval(id);
+}
+function _JS_Eval_OpenURL(ptr) {
+ var str = Pointer_stringify(ptr);
+ location.href = str;
 }
 function _JS_Eval_SetInterval(func, arg, millis) {
  Module["noExitRuntime"] = true;
@@ -3684,6 +3688,100 @@ function _JS_SystemInfo_HasFullscreen() {
 }
 function _JS_SystemInfo_HasWebGL() {
  return UnityLoader.SystemInfo.hasWebGL;
+}
+var wr = {
+ requestInstances: {},
+ nextRequestId: 1
+};
+function _JS_WebRequest_Abort(request) {
+ wr.requestInstances[request].abort();
+}
+function _JS_WebRequest_Create(url, method) {
+ var http = new XMLHttpRequest;
+ var _url = Pointer_stringify(url);
+ var _method = Pointer_stringify(method);
+ http.open(_method, _url, true);
+ http.responseType = "arraybuffer";
+ wr.requestInstances[wr.nextRequestId] = http;
+ return wr.nextRequestId++;
+}
+function _JS_WebRequest_GetResponseHeaders(request, buffer, bufferSize) {
+ var headers = wr.requestInstances[request].getAllResponseHeaders();
+ if (buffer) stringToUTF8(headers, buffer, bufferSize);
+ return lengthBytesUTF8(headers);
+}
+function _JS_WebRequest_Release(request) {
+ var http = wr.requestInstances[request];
+ http.onload = null;
+ http.onerror = null;
+ http.ontimeout = null;
+ http.onabort = null;
+ delete http;
+ wr.requestInstances[request] = null;
+}
+function _JS_WebRequest_Send(request, ptr, length) {
+ var http = wr.requestInstances[request];
+ try {
+  if (length > 0) {
+   var postData = HEAPU8.subarray(ptr, ptr + length);
+   http.send(postData);
+  } else http.send();
+ } catch (e) {
+  console.error(e.name + ": " + e.message);
+ }
+}
+function _JS_WebRequest_SetProgressHandler(request, arg, onprogress) {
+ var http = wr.requestInstances[request];
+ http.onprogress = function http_onprogress(e) {
+  if (onprogress) {
+   if (e.lengthComputable) dynCall("viii", onprogress, [ arg, e.loaded, e.total ]);
+  }
+ };
+}
+function _JS_WebRequest_SetRequestHeader(request, header, value) {
+ var _header = Pointer_stringify(header);
+ var _value = Pointer_stringify(value);
+ wr.requestInstances[request].setRequestHeader(_header, _value);
+}
+function _JS_WebRequest_SetResponseHandler(request, arg, onresponse) {
+ var http = wr.requestInstances[request];
+ http.onload = function http_onload(e) {
+  if (onresponse) {
+   var kWebRequestOK = 0;
+   var byteArray = new Uint8Array(http.response);
+   if (byteArray.length != 0) {
+    var buffer = _malloc(byteArray.length);
+    HEAPU8.set(byteArray, buffer);
+    dynCall("viiiiii", onresponse, [ arg, http.status, buffer, byteArray.length, 0, kWebRequestOK ]);
+   } else {
+    dynCall("viiiiii", onresponse, [ arg, http.status, 0, 0, 0, kWebRequestOK ]);
+   }
+  }
+ };
+ function HandleError(err, code) {
+  if (onresponse) {
+   var len = lengthBytesUTF8(err) + 1;
+   var buffer = _malloc(len);
+   stringToUTF8(err, buffer, len);
+   dynCall("viiiiii", onresponse, [ arg, http.status, 0, 0, buffer, code ]);
+   _free(buffer);
+  }
+ }
+ http.onerror = function http_onerror(e) {
+  var kWebErrorUnknown = 2;
+  HandleError("Unknown error.", kWebErrorUnknown);
+ };
+ http.ontimeout = function http_onerror(e) {
+  var kWebErrorTimeout = 14;
+  HandleError("Connection timed out.", kWebErrorTimeout);
+ };
+ http.onabort = function http_onerror(e) {
+  var kWebErrorAborted = 17;
+  HandleError("Aborted.", kWebErrorAborted);
+ };
+}
+function _JS_WebRequest_SetTimeout(request, timeout) {
+ wr.requestInstances[request].timeout = timeout;
 }
 function ___atomic_fetch_add_8(ptr, vall, valh, memmodel) {
  var l = HEAP32[ptr >> 2];
@@ -13458,6 +13556,10 @@ function _mktime(tmPtr) {
  HEAP32[tmPtr + 28 >> 2] = yday;
  return date.getTime() / 1e3 | 0;
 }
+function _openPage(url) {
+ url = Pointer_stringify(url);
+ window.open(url, "_blank");
+}
 var PTHREAD_SPECIFIC = {};
 function _pthread_getspecific(key) {
  return PTHREAD_SPECIFIC[key] || 0;
@@ -14449,6 +14551,11 @@ function nullFunc_iiijiii(x) {
  err("Build with ASSERTIONS=2 for more info.");
  abort(x);
 }
+function nullFunc_iiijji(x) {
+ err("Invalid function pointer called with signature 'iiijji'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
 function nullFunc_iiijjii(x) {
  err("Invalid function pointer called with signature 'iiijjii'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
  err("Build with ASSERTIONS=2 for more info.");
@@ -14611,6 +14718,16 @@ function nullFunc_jijji(x) {
 }
 function nullFunc_jji(x) {
  err("Invalid function pointer called with signature 'jji'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
+function nullFunc_jjii(x) {
+ err("Invalid function pointer called with signature 'jjii'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
+ err("Build with ASSERTIONS=2 for more info.");
+ abort(x);
+}
+function nullFunc_jjjji(x) {
+ err("Invalid function pointer called with signature 'jjjji'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");
  err("Build with ASSERTIONS=2 for more info.");
  abort(x);
 }
@@ -15024,8 +15141,8 @@ function nullFunc_vjji(x) {
  err("Build with ASSERTIONS=2 for more info.");
  abort(x);
 }
-Module["wasmTableSize"] = 43424;
-Module["wasmMaxTableSize"] = 43424;
+Module["wasmTableSize"] = 47799;
+Module["wasmMaxTableSize"] = 47799;
 function invoke_dd(index, a1) {
  var sp = stackSave();
  try {
@@ -15796,6 +15913,16 @@ function invoke_iiijiii(index, a1, a2, a3, a4, a5, a6, a7) {
   Module["setThrew"](1, 0);
  }
 }
+function invoke_iiijji(index, a1, a2, a3, a4, a5, a6, a7) {
+ var sp = stackSave();
+ try {
+  return Module["dynCall_iiijji"](index, a1, a2, a3, a4, a5, a6, a7);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
 function invoke_iiijjii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
  var sp = stackSave();
  try {
@@ -16120,6 +16247,26 @@ function invoke_jji(index, a1, a2, a3) {
  var sp = stackSave();
  try {
   return Module["dynCall_jji"](index, a1, a2, a3);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_jjii(index, a1, a2, a3, a4) {
+ var sp = stackSave();
+ try {
+  return Module["dynCall_jjii"](index, a1, a2, a3, a4);
+ } catch (e) {
+  stackRestore(sp);
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  Module["setThrew"](1, 0);
+ }
+}
+function invoke_jjjji(index, a1, a2, a3, a4, a5, a6, a7) {
+ var sp = stackSave();
+ try {
+  return Module["dynCall_jjjji"](index, a1, a2, a3, a4, a5, a6, a7);
  } catch (e) {
   stackRestore(sp);
   if (typeof e !== "number" && e !== "longjmp") throw e;
@@ -17031,6 +17178,7 @@ Module.asmLibraryArg = {
  "nullFunc_iiiji": nullFunc_iiiji,
  "nullFunc_iiijii": nullFunc_iiijii,
  "nullFunc_iiijiii": nullFunc_iiijiii,
+ "nullFunc_iiijji": nullFunc_iiijji,
  "nullFunc_iiijjii": nullFunc_iiijjii,
  "nullFunc_iij": nullFunc_iij,
  "nullFunc_iiji": nullFunc_iiji,
@@ -17064,6 +17212,8 @@ Module.asmLibraryArg = {
  "nullFunc_jijj": nullFunc_jijj,
  "nullFunc_jijji": nullFunc_jijji,
  "nullFunc_jji": nullFunc_jji,
+ "nullFunc_jjii": nullFunc_jjii,
+ "nullFunc_jjjji": nullFunc_jjjji,
  "nullFunc_v": nullFunc_v,
  "nullFunc_vd": nullFunc_vd,
  "nullFunc_vf": nullFunc_vf,
@@ -17223,6 +17373,7 @@ Module.asmLibraryArg = {
  "invoke_iiiji": invoke_iiiji,
  "invoke_iiijii": invoke_iiijii,
  "invoke_iiijiii": invoke_iiijiii,
+ "invoke_iiijji": invoke_iiijji,
  "invoke_iiijjii": invoke_iiijjii,
  "invoke_iij": invoke_iij,
  "invoke_iiji": invoke_iiji,
@@ -17256,6 +17407,8 @@ Module.asmLibraryArg = {
  "invoke_jijj": invoke_jijj,
  "invoke_jijji": invoke_jijji,
  "invoke_jji": invoke_jji,
+ "invoke_jjii": invoke_jjii,
+ "invoke_jjjji": invoke_jjjji,
  "invoke_v": invoke_v,
  "invoke_vd": invoke_vd,
  "invoke_vf": invoke_vf,
@@ -17341,6 +17494,7 @@ Module.asmLibraryArg = {
  "_JS_Cursor_SetImage": _JS_Cursor_SetImage,
  "_JS_Cursor_SetShow": _JS_Cursor_SetShow,
  "_JS_Eval_ClearInterval": _JS_Eval_ClearInterval,
+ "_JS_Eval_OpenURL": _JS_Eval_OpenURL,
  "_JS_Eval_SetInterval": _JS_Eval_SetInterval,
  "_JS_FileSystem_Initialize": _JS_FileSystem_Initialize,
  "_JS_FileSystem_Sync": _JS_FileSystem_Sync,
@@ -17375,6 +17529,15 @@ Module.asmLibraryArg = {
  "_JS_SystemInfo_HasCursorLock": _JS_SystemInfo_HasCursorLock,
  "_JS_SystemInfo_HasFullscreen": _JS_SystemInfo_HasFullscreen,
  "_JS_SystemInfo_HasWebGL": _JS_SystemInfo_HasWebGL,
+ "_JS_WebRequest_Abort": _JS_WebRequest_Abort,
+ "_JS_WebRequest_Create": _JS_WebRequest_Create,
+ "_JS_WebRequest_GetResponseHeaders": _JS_WebRequest_GetResponseHeaders,
+ "_JS_WebRequest_Release": _JS_WebRequest_Release,
+ "_JS_WebRequest_Send": _JS_WebRequest_Send,
+ "_JS_WebRequest_SetProgressHandler": _JS_WebRequest_SetProgressHandler,
+ "_JS_WebRequest_SetRequestHeader": _JS_WebRequest_SetRequestHeader,
+ "_JS_WebRequest_SetResponseHandler": _JS_WebRequest_SetResponseHandler,
+ "_JS_WebRequest_SetTimeout": _JS_WebRequest_SetTimeout,
  "__ZSt18uncaught_exceptionv": __ZSt18uncaught_exceptionv,
  "___atomic_fetch_add_8": ___atomic_fetch_add_8,
  "___buildEnvironment": ___buildEnvironment,
@@ -17699,6 +17862,7 @@ Module.asmLibraryArg = {
  "_localtime": _localtime,
  "_localtime_r": _localtime_r,
  "_mktime": _mktime,
+ "_openPage": _openPage,
  "_pthread_getspecific": _pthread_getspecific,
  "_pthread_key_create": _pthread_key_create,
  "_pthread_once": _pthread_once,
@@ -23725,6 +23889,11 @@ var dynCall_iiijiii = Module["dynCall_iiijiii"] = (function() {
  assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
  return Module["asm"]["dynCall_iiijiii"].apply(null, arguments);
 });
+var dynCall_iiijji = Module["dynCall_iiijji"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_iiijji"].apply(null, arguments);
+});
 var dynCall_iiijjii = Module["dynCall_iiijjii"] = (function() {
  assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
  assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
@@ -23889,6 +24058,16 @@ var dynCall_jji = Module["dynCall_jji"] = (function() {
  assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
  assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
  return Module["asm"]["dynCall_jji"].apply(null, arguments);
+});
+var dynCall_jjii = Module["dynCall_jjii"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_jjii"].apply(null, arguments);
+});
+var dynCall_jjjji = Module["dynCall_jjjji"] = (function() {
+ assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
+ assert(!runtimeExited, "the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)");
+ return Module["asm"]["dynCall_jjjji"].apply(null, arguments);
 });
 var dynCall_v = Module["dynCall_v"] = (function() {
  assert(runtimeInitialized, "you need to wait for the runtime to be ready (e.g. wait for main() to be called)");
